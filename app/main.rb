@@ -20,31 +20,35 @@ def calc(args)
   args.state.swinging_light_angle = 360 + ((args.state.max_swing_angle * args.state.swinging_light_perc) * args.state.swinging_light_sign)
 end
 
-$pos = 0
-
 def render(args)
   args.outputs.background_color = [0, 0, 0]
 
-  args.gtk.slowmo! 2
-  $pos += 10
-  $pos = -640 if $pos > 1280
+  # args.gtk.slowmo! 2
+
+  # Looping Motion
+  args.state[:red] ||= -640
+  args.state[:red] += 10
+  args.state[:red] = -640 if args.state[:red] > 1280
 
   # Sub Render Target
+  args.outputs[:character].transient = true
   args.outputs[:character].height = 720
   args.outputs[:character].width = 1280
-  args.outputs[:character].sprites << { x: 640 - 80, y: 100, w:   80, h:  80, path: 'sprites/square/red.png' }
+  args.outputs[:character].sprites << { x: 640 - 80, y: 100, w: 80, h: 80, path: 'sprites/square/red.png' }
 
   # render scene
+  args.outputs[:scene].transient = true
   args.outputs[:scene].sprites << { x:        0, y:   0, w: 1280, h: 720, path: :pixel }
   args.outputs[:scene].sprites << { x: 640 - 40, y: 100, w:   80, h:  80, path: 'sprites/square/blue.png' }
   args.outputs[:scene].sprites << { x: 640 - 40, y: 200, w:   80, h:  80, path: 'sprites/square/blue.png' }
   args.outputs[:scene].sprites << { x: 640 - 40, y: 300, w:   80, h:  80, path: 'sprites/square/blue.png' }
   args.outputs[:scene].sprites << { x: 640 - 40, y: 400, w:   80, h:  80, path: 'sprites/square/blue.png' }
   args.outputs[:scene].sprites << { x: 640 - 40, y: 500, w:   80, h:  80, path: 'sprites/square/blue.png' }
-  args.outputs[:scene].sprites << { x: $pos, y: 100, w: 1280, h: 720, path: :character }
+  args.outputs[:scene].sprites << { x: args.state[:red], y: 100, w: 1280, h: 720, path: :character }
 
   # render light
   swinging_light_w = 1100
+  args.outputs[:lights].transient = true
   args.outputs[:lights].background_color = [0, 0, 0, 0]
   args.outputs[:lights].sprites << { x: 640 - swinging_light_w.half,
                                      y: -1300,
@@ -62,11 +66,19 @@ def render(args)
                                      path: 'sprites/lights/mask.png' }
 
   # merge unlighted scene with lights
+  args.outputs[:lighted_scene].transient = true
   args.outputs[:lighted_scene].sprites << { x: 0, y: 0, w: 1280, h: 720, path: :lights, blendmode_enum: 0 }
   args.outputs[:lighted_scene].sprites << { blendmode_enum: 2, x: 0, y: 0, w: 1280, h: 720, path: :scene }
 
-  # output lighted scene to main canvas
-  args.outputs.sprites << { x: 0, y: 0, w: 1280, h: 720, path: :lighted_scene }
+  args.state[:toggle] = !args.state[:toggle] if args.inputs.keyboard.key_up.space
+
+  # Debug Toggle
+  args.outputs.sprites << if args.state[:toggle]
+                            # output lighted scene to main canvas
+                            { x: 0, y: 0, w: 1280, h: 720, path: :lighted_scene }
+                          else
+                            { x: 0, y: 0, w: 1280, h: 720, path: :scene }
+                          end
 
   # render lights and scene render_targets as a mini map
   args.outputs.debug  << { x: 16,      y: (16 + 90).from_top, w: 160, h: 90, r: 255, g: 255, b: 255 }.solid!
